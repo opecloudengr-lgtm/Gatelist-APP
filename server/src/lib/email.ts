@@ -1,19 +1,39 @@
+import nodemailer from "nodemailer";
+import type { Transporter } from "nodemailer";
 import { logger } from "./logger.js";
 import { env } from "./env.js";
 
 /**
- * Dev transport logs the email to stdout so verification/reset flows are testable
- * without a real provider. Swap this module for SendGrid/SES in production by
- * implementing the same sendEmail() signature.
+ * Dev transport (default) logs the email to stdout so verification/reset flows
+ * are testable without a real provider. Setting EMAIL_TRANSPORT=smtp sends real
+ * mail through any SMTP-speaking provider (SendGrid, SES, Mailgun, Postmark,
+ * plain Gmail/Workspace, ...) — just point SMTP_HOST/PORT/USER/PASSWORD at it.
  */
+
+let transporter: Transporter | null = null;
+
+function getTransporter(): Transporter {
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
+      host: env.SMTP_HOST,
+      port: env.SMTP_PORT,
+      secure: env.SMTP_SECURE,
+      auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASSWORD } : undefined,
+    });
+  }
+  return transporter;
+}
+
 export async function sendEmail(opts: { to: string; subject: string; text: string; html?: string }): Promise<void> {
-  if (env.EMAIL_TRANSPORT === "console") {
-    logger.info({ to: opts.to, subject: opts.subject }, "email:send (console transport)");
-    // eslint-disable-next-line no-console
-    console.log(`\n--- EMAIL to ${opts.to} ---\nSubject: ${opts.subject}\n\n${opts.text}\n--- END EMAIL ---\n`);
+  if (env.EMAIL_TRANSPORT === "smtp") {
+    await getTransporter().sendMail({ from: env.EMAIL_FROM, to: opts.to, subject: opts.subject, text: opts.text, html: opts.html });
+    logger.info({ to: opts.to, subject: opts.subject }, "email:send (smtp transport)");
     return;
   }
-  throw new Error(`Unsupported EMAIL_TRANSPORT: ${env.EMAIL_TRANSPORT}`);
+
+  logger.info({ to: opts.to, subject: opts.subject }, "email:send (console transport)");
+  // eslint-disable-next-line no-console
+  console.log(`\n--- EMAIL to ${opts.to} ---\nSubject: ${opts.subject}\n\n${opts.text}\n--- END EMAIL ---\n`);
 }
 
 export function verificationEmail(name: string, verifyUrl: string) {

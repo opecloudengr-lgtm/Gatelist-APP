@@ -1,24 +1,34 @@
 import "dotenv/config";
 import { z } from "zod";
 
-const envSchema = z.object({
-  DATABASE_URL: z.string().min(1),
-  PORT: z.coerce.number().default(4000),
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+const envSchema = z
+  .object({
+    DATABASE_URL: z.string().min(1),
+    PORT: z.coerce.number().default(4000),
+    NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 
-  JWT_ACCESS_SECRET: z.string().min(16),
-  JWT_REFRESH_SECRET: z.string().min(16),
-  JWT_ACCESS_TTL: z.string().default("15m"),
-  JWT_REFRESH_TTL: z.string().default("30d"),
+    JWT_ACCESS_SECRET: z.string().min(16),
+    JWT_REFRESH_SECRET: z.string().min(16),
+    JWT_ACCESS_TTL: z.string().default("15m"),
+    JWT_REFRESH_TTL: z.string().default("30d"),
 
-  TICKET_SIGNING_SECRET: z.string().min(16),
+    TICKET_SIGNING_SECRET: z.string().min(16),
 
-  EMAIL_FROM: z.string().default("GateList <no-reply@gatelist.app>"),
-  EMAIL_TRANSPORT: z.enum(["console"]).default("console"),
+    EMAIL_FROM: z.string().default("GateList <no-reply@gatelist.app>"),
+    EMAIL_TRANSPORT: z.enum(["console", "smtp"]).default("console"),
+    SMTP_HOST: z.string().optional(),
+    SMTP_PORT: z.coerce.number().optional(),
+    SMTP_SECURE: z.coerce.boolean().default(false),
+    SMTP_USER: z.string().optional(),
+    SMTP_PASSWORD: z.string().optional(),
 
-  WEB_APP_URL: z.string().default("http://localhost:5173"),
-  CORS_ORIGIN: z.string().default("http://localhost:5173"),
-});
+    WEB_APP_URL: z.string().default("http://localhost:5173"),
+    CORS_ORIGIN: z.string().default("http://localhost:5173"),
+  })
+  .refine((data) => data.EMAIL_TRANSPORT !== "smtp" || (data.SMTP_HOST && data.SMTP_PORT), {
+    message: "SMTP_HOST and SMTP_PORT are required when EMAIL_TRANSPORT=smtp",
+    path: ["SMTP_HOST"],
+  });
 
 const parsed = envSchema.safeParse(process.env);
 

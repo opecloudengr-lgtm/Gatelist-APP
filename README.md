@@ -96,9 +96,12 @@ See `server/.env.example`. Notably:
 - `TICKET_SIGNING_SECRET` — HMAC key for ticket tokens. Rotating it
   invalidates every issued ticket, so treat it like any other production
   secret.
-- `EMAIL_TRANSPORT=console` — the default dev transport logs verification and
-  invite emails to stdout instead of sending them. Swap in a real provider by
-  implementing `sendEmail()` in `server/src/lib/email.ts`.
+- `EMAIL_TRANSPORT` — `console` (default) logs verification and invite emails
+  to stdout instead of sending them, which is what local dev and the test
+  suite use. Set it to `smtp` and fill in `SMTP_HOST` / `SMTP_PORT` /
+  `SMTP_USER` / `SMTP_PASSWORD` to send real mail through any SMTP-speaking
+  provider — SendGrid, SES, Mailgun, Postmark, or plain Workspace/Gmail all
+  work without further code changes.
 
 ## What's deliberately out of scope (v1, per the PRD)
 
