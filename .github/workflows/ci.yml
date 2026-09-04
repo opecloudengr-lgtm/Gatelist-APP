@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  server:
+    name: Server (typecheck + tests)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: gatelist
+          POSTGRES_PASSWORD: gatelist_dev_pw
+          POSTGRES_DB: gatelist_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gatelist"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://gatelist:gatelist_dev_pw@localhost:5432/gatelist_test?schema=public
+      NODE_ENV: test
+      JWT_ACCESS_SECRET: ci-access-secret-please-ignore
+      JWT_REFRESH_SECRET: ci-refresh-secret-please-ignore
+      TICKET_SIGNING_SECRET: ci-ticket-secret-please-ignore
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Generate Prisma Client
+        run: npm run --workspace server prisma:generate
+
+      - name: Apply migrations
+        run: npm run --workspace server prisma:deploy
+
+      - name: Typecheck
+        run: npx tsc -p server/tsconfig.json --noEmit
+
+      - name: Test
+        run: npm run --workspace server test
+
+  web:
+    name: Web (typecheck + build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build
+        run: npm run --workspace web build
