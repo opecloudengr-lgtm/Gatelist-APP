@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-mist-50 text-ink-950 antialiased;
+    font-family: "Manrope", system-ui, sans-serif;
+  }
+  h1, h2, h3, .font-display {
+    font-family: "Fraunces", serif;
+  }
+  input, select, textarea, button {
+    font-family: inherit;
+  }
+}
+
+@layer utilities {
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}

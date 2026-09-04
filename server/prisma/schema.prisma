@@ -1,0 +1,199 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum GlobalRole {
+  ORGANIZER
+  STAFF
+}
+
+enum EventStaffRole {
+  CO_ORGANIZER
+  STAFF
+}
+
+enum TicketStatus {
+  ISSUED
+  CHECKED_IN
+  VOID
+}
+
+enum CheckInResult {
+  VALID
+  DUPLICATE
+  INVALID
+  MANUAL
+}
+
+enum CheckInSource {
+  SCAN
+  MANUAL
+}
+
+enum StaffInviteStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
+model User {
+  id                String   @id @default(uuid())
+  name              String
+  email             String   @unique
+  passwordHash      String
+  role              GlobalRole
+  emailVerified     Boolean  @default(false)
+  verificationToken String?
+  verificationTokenExpiresAt DateTime?
+  resetToken        String?
+  resetTokenExpiresAt DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  organizedEvents   Event[]        @relation("EventOrganizer")
+  staffMemberships  EventStaff[]
+  checkInsPerformed CheckInLog[]   @relation("CheckInScannedBy")
+  staffInvitesSent  StaffInvite[]  @relation("StaffInviteInvitedBy")
+
+  @@index([email])
+}
+
+model Event {
+  id           String   @id @default(uuid())
+  organizerId  String
+  organizer    User     @relation("EventOrganizer", fields: [organizerId], references: [id], onDelete: Cascade)
+  name         String
+  dateTime     DateTime
+  venue        String
+  description  String?
+  capacity     Int?
+  isPrivate    Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  categories   EventCategory[]
+  staff        EventStaff[]
+  guests       Guest[]
+  tickets      Ticket[]
+  checkInLogs  CheckInLog[]
+  staffInvites StaffInvite[]
+
+  @@index([organizerId])
+}
+
+model EventCategory {
+  id        String  @id @default(uuid())
+  eventId   String
+  event     Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name      String
+  color     String  @default("#6366F1")
+  sortOrder Int     @default(0)
+  isDefault Boolean @default(false)
+
+  guests Guest[]
+
+  @@unique([eventId, name])
+  @@index([eventId])
+}
+
+model EventStaff {
+  id          String         @id @default(uuid())
+  eventId     String
+  event       Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        EventStaffRole @default(STAFF)
+  canScan     Boolean        @default(true)
+  canEditGuestList Boolean   @default(false)
+  createdAt   DateTime       @default(now())
+
+  @@unique([eventId, userId])
+  @@index([userId])
+}
+
+model StaffInvite {
+  id           String            @id @default(uuid())
+  eventId      String
+  event        Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  email        String
+  role         EventStaffRole    @default(STAFF)
+  status       StaffInviteStatus @default(PENDING)
+  token        String            @unique
+  invitedById  String
+  invitedBy    User              @relation("StaffInviteInvitedBy", fields: [invitedById], references: [id])
+  expiresAt    DateTime
+  createdAt    DateTime          @default(now())
+
+  @@index([eventId])
+  @@index([email])
+}
+
+model Guest {
+  id              String   @id @default(uuid())
+  eventId         String
+  event           Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  fullName        String
+  contact         String?
+  categoryId      String?
+  category        EventCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tableSeatLabel  String?
+  plusOnesAllowed Int      @default(0)
+  notes           String?
+  isPlusOne       Boolean  @default(false)
+  primaryGuestId  String?
+  primaryGuest    Guest?   @relation("GuestPlusOnes", fields: [primaryGuestId], references: [id], onDelete: Cascade)
+  plusOnes        Guest[]  @relation("GuestPlusOnes")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tickets Ticket[]
+
+  @@index([eventId])
+  @@index([primaryGuestId])
+}
+
+model Ticket {
+  id           String       @id @default(uuid())
+  guestId      String
+  guest        Guest        @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  eventId      String
+  event        Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  uniqueToken  String       @unique
+  status       TicketStatus @default(ISSUED)
+  checkedInAt  DateTime?
+  checkedInById String?
+  source       CheckInSource?
+  voidedAt     DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  checkInLogs CheckInLog[]
+
+  @@index([guestId])
+  @@index([eventId])
+  @@index([status])
+}
+
+model CheckInLog {
+  id         String        @id @default(uuid())
+  ticketId   String?
+  ticket     Ticket?       @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  eventId    String
+  event      Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  scannedById String?
+  scannedBy  User?         @relation("CheckInScannedBy", fields: [scannedById], references: [id], onDelete: SetNull)
+  result     CheckInResult
+  guestNameSnapshot String?
+  timestamp  DateTime      @default(now())
+  device     String?
+  clientScanId String?
+
+  @@index([eventId])
+  @@index([ticketId])
+  @@unique([ticketId, clientScanId])
+}
