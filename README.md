@@ -103,6 +103,52 @@ See `server/.env.example`. Notably:
   provider — SendGrid, SES, Mailgun, Postmark, or plain Workspace/Gmail all
   work without further code changes.
 
+## Deploying to Railway
+
+The API serves the built web app itself in production (`server/src/app.ts`
+serves `web/dist` and falls back to `index.html` for client-side routes when
+that directory exists), so this is a single Railway service plus a Postgres
+addon — not two separate deployments to wire together.
+
+1. **Create the Railway project** from this GitHub repo (New Project → Deploy
+   from GitHub repo). Railway will pick up `railway.json` at the repo root,
+   which sets the build command (`npm ci && npm run build`, building both
+   workspaces), the start command (`prisma migrate deploy` then `npm start`,
+   so schema changes ship automatically with every deploy), and a health
+   check against `/health`.
+2. **Add a Postgres database**: New → Database → PostgreSQL in the same
+   project. Railway provisions it and exposes a reference variable.
+3. **Set environment variables** on the app service (Variables tab):
+   - `DATABASE_URL` → reference the Postgres service's variable (Railway
+     autocompletes this, typically `${{Postgres.DATABASE_URL}}`)
+   - `NODE_ENV=production`
+   - `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `TICKET_SIGNING_SECRET` — generate
+     with `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`,
+     run three times. Don't reuse the values from `.env.example`.
+   - `EMAIL_TRANSPORT=smtp` plus `EMAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`,
+     `SMTP_USER`, `SMTP_PASSWORD` for your provider (see the SendGrid example
+     in `server/.env.example`)
+   - `CORS_ORIGIN` and `WEB_APP_URL` — leave these pointing at
+     `http://localhost:5173` for the very first deploy, then once Railway
+     assigns your service a domain (Settings → Networking → Generate
+     Domain), update both to that `https://` URL and redeploy. `WEB_APP_URL`
+     is what verification/reset/staff-invite email links point to, so it
+     has to be right before those emails are useful.
+
+   `PORT` doesn't need setting — Railway injects it and the server already
+   reads `process.env.PORT`.
+4. **Deploy.** Railway builds and starts the service; watch the deploy logs
+   for the `prisma migrate deploy` step and the `GateList API listening on
+   port ...` line.
+
+If you'd rather host the frontend separately (e.g. on a CDN like Vercel or
+Cloudflare Pages instead of serving it from Express), the static-serving
+block in `app.ts` only activates when `web/dist` exists next to the server
+build — skip building the web workspace in that deploy and it's a pure API
+service. You'd then need to point the frontend's API calls at the Railway
+service's URL instead of the relative `/api` paths it uses today, and set
+`CORS_ORIGIN` to the frontend's real origin.
+
 ## What's deliberately out of scope (v1, per the PRD)
 
 Public event listings, ticket sales/payments, a guest-facing app, virtual
