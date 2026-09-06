@@ -139,8 +139,12 @@ export default function EventGuestsTab() {
       {ticketView && (
         <TicketModal
           eventId={event.id}
+          eventName={event.name}
+          eventDateTime={event.dateTime}
+          eventVenue={event.venue}
           guestName={ticketView.guest.fullName}
           category={ticketView.guest.category}
+          tableSeatLabel={ticketView.guest.tableSeatLabel}
           ticket={ticketView.ticket}
           onClose={() => setTicketView(null)}
           onChanged={refresh}
