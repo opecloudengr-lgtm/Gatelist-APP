@@ -64,7 +64,7 @@ export function TicketCard({ eventName, eventDateTime, eventVenue, guestName, ca
           </div>
 
           <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-            <Field label="Attendee" value={guestName} />
+            <Field label="Name" value={guestName} />
             <Field label="Category" value={categoryName} />
             <Field label="Table / seat" value={tableSeatLabel ?? "—"} />
             <Field label="Status" value={STATUS_LABEL[status]} />

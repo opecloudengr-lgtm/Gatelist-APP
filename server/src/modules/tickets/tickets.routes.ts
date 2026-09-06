@@ -114,7 +114,7 @@ ticketsRouter.get(
 
     // Attendee info grid.
     const fields: [string, string][] = [
-      ["ATTENDEE", guest.fullName],
+      ["NAME", guest.fullName],
       ["CATEGORY", category?.name ?? "General"],
       ["TABLE / SEAT", guest.tableSeatLabel ?? "—"],
       ["STATUS", statusLabel],
