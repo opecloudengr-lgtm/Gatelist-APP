@@ -20,7 +20,7 @@ export async function getTicket(user: AuthUser, eventId: string, ticketId: strin
   await loadEventAccess(user, eventId);
   const ticket = await prisma.ticket.findFirst({
     where: { id: ticketId, eventId },
-    include: { guest: { include: { category: true } } },
+    include: { guest: { include: { category: true } }, event: true },
   });
   if (!ticket) throw ApiError.notFound("Ticket not found");
   return ticket;
